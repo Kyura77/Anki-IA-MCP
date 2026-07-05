@@ -1,0 +1,20 @@
+node_modules/
+build/
+.env
+
+# Python caching
+__pycache__/
+*.pyc
+
+# Temporary / test / scratch files used during development
+test-client.mjs
+test-pdf.js
+extract_images.py
+map_pdf.py
+create_cards.py
+extracted_images/
+check_notes.py
+create_physics_cards.py
+run_parse.py
+parsed_output.json
+parsed_output_utf8.json
