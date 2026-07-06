@@ -1,90 +1,112 @@
 # Anki AI MCP Server 🤖📚
 
-Este é um servidor MCP (Model Context Protocol) desenvolvido em TypeScript/Node.js que atua como uma ponte local entre qualquer Inteligência Artificial moderna (como Claude Desktop, Cursor, Windsurf, etc.) e o seu **Anki Desktop**.
+Este é um repositório completo que fornece um servidor **MCP (Model Context Protocol)** para integrar o seu **Anki Desktop** com Inteligências Artificiais modernas. Ele oferece duas formas de uso:
 
-Com ele, a IA ganha "superpoderes" para ler, criar, editar e analisar o seu banco de estudos diretamente pelo chat, inclusive extraindo textos e diagramas/imagens de documentos de estudo.
+1. **Cliente Local (via TypeScript/Stdio):** Ideal para editores locais como **Cursor, Windsurf, Claude Desktop**, etc.
+2. **Cliente Web (via Python/SSE + ngrok):** Ideal para conectar diretamente ao site do **ChatGPT (Web)** no formato Sandbox (seguro).
+
+Com este servidor, a IA ganha "superpoderes" para ler, criar, buscar, editar e analisar seu banco de estudos diretamente pelo chat, inclusive extraindo textos e mídias de documentos PDF.
 
 ---
 
-## 🛠️ Pré-requisitos e Instalação
+## 🔌 1. Pré-requisitos Gerais (Para Ambos os Métodos)
 
-Para que o servidor funcione, você deve configurar o seu ambiente local seguindo estes passos:
+Para que qualquer uma das integrações funcione, o seu computador precisa estar configurado:
 
-### 1. Instalar o Anki Desktop 💻
+### A. Instalar o Anki Desktop 💻
 O servidor MCP precisa se comunicar com o aplicativo instalado no seu computador.
-- Baixe e instale o [Anki Desktop](https://apps.ankiweb.net/).
-- *(Opcional)* Crie uma conta no [AnkiWeb](https://ankiweb.net/) para sincronizar seus cartões em nuvem com o celular ou outros dispositivos.
+* Baixe e instale o [Anki Desktop](https://apps.ankiweb.net/).
+* *(Opcional)* Crie uma conta no [AnkiWeb](https://ankiweb.net/) para sincronizar seus cartões.
 
-### 2. Instalar o add-on AnkiConnect 🔌
+### B. Instalar o add-on AnkiConnect 🔌
 O Anki precisa de uma extensão para conseguir conversar com o nosso servidor MCP.
 1. Abra o seu **Anki Desktop**.
-2. Vá no menu superior em **Ferramentas** -> **Extensões** (ou `Ctrl+Shift+A`).
-3. Clique em **Obter extensões...**.
+2. Vá no menu superior em **Ferramentas** -> **Complementos** (Add-ons).
+3. Clique em **Adquirir Complementos...** (Get Add-ons).
 4. Insira o código do [AnkiConnect](https://ankiweb.net/shared/info/2055492159): `2055492159` e clique em OK.
 5. Reinicie o Anki para ativar a extensão.
 
 > [!IMPORTANT]
-> **O Anki Desktop deve estar sempre aberto** e rodando em segundo plano no seu computador para que a Inteligência Artificial consiga criar, ler ou atualizar os seus cartões!
-
-### 3. Requisitos do Sistema (Node.js & Python) 🐍
-O servidor utiliza Node.js e um script Python auxiliar para quebrar documentos complexos de estudo.
-- Certifique-se de ter o [Node.js](https://nodejs.org/) instalado (versão 18+).
-- Instale as bibliotecas Python necessárias para processar arquivos de mídia e PDFs rodando:
-  ```bash
-  pip install pymupdf pillow
-  ```
+> **O Anki Desktop deve estar sempre aberto** e rodando em segundo plano no seu computador para que a Inteligência Artificial consiga se comunicar com os seus cartões!
 
 ---
 
-## 📄 Suporte a Documentos (PDF, DOCX, etc.)
+## 🛠️ Método A: Servidor Local TypeScript (Cursor, Claude Desktop, etc.)
 
-O servidor vem equipado com a ferramenta avançada `anki_parse_pdf`, que extrai de forma inteligente:
-- Textos e enunciados formatados de **PDFs**.
-- Imagens, tabelas e diagramas nativos do documento, salvando-os de forma automática e coordenada diretamente na pasta de mídias do seu Anki.
+Este método executa o servidor localmente através do terminal (`stdio`). Ele tem acesso completo de leitura/escrita e suporte ao processamento de PDFs locais.
 
-*Nota:* Para documentos em outros formatos (como **.docx**, **.txt**, etc.), você pode pedir para a sua IA ler o conteúdo do arquivo no próprio chat usando as ferramentas internas do editor (Cursor, Claude) e ela usará o servidor MCP para formatar e injetar os flashcards com respostas e explicações de forma limpa no seu baralho.
+### Requisitos:
+* [Node.js](https://nodejs.org/) instalado (versão 18+).
+* Dependências do script Python de PDF: `pip install pymupdf pillow`.
 
----
-
-## 📦 Configuração da IA (MCP Client)
-
-### 1. Buildar o projeto localmente:
-Abra a pasta do projeto no terminal e rode:
-```bash
-npm install
-npx tsc
-```
-
-### 2. Adicionar nas configurações do seu cliente MCP:
-
-Insira esta configuração no arquivo JSON de configurações MCP da sua IA (como o `claude_desktop_config.json` ou nas configurações de MCP do Cursor):
-
-```json
-{
-  "mcpServers": {
-    "anki-server": {
-      "command": "node",
-      "args": [
-        "C:/Users/cd250/.gemini/antigravity/scratch/anki-mcp-server/build/index.js"
-      ]
-    }
-  }
-}
-```
-*(Certifique-se de ajustar o caminho absoluto da pasta `build/index.js` para o local exato onde o projeto está no seu computador).*
+### Configuração:
+1. Abra a pasta do projeto no terminal e rode:
+   ```bash
+   npm install
+   npx tsc
+   ```
+2. Adicione o servidor nas configurações MCP do seu editor/cliente. Exemplo de configuração para o `claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "anki-server": {
+         "command": "node",
+         "args": [
+           "C:/caminho/do/projeto/build/index.js"
+         ]
+       }
+     }
+   }
+   ```
 
 ---
 
-## 💡 Como Usar (Prompt Natural)
+## 🌐 Método B: Ponte Sandbox Python (ChatGPT Web)
 
-Uma vez ativo, você pode pedir naturalmente para a sua IA realizar ações no Anki. Exemplos:
+Este método expõe um servidor HTTP/SSE local na porta `8000` e utiliza o **ngrok** para criar um túnel seguro. Ele foi desenvolvido em **modo Sandbox** (sem acesso aos seus arquivos locais), permitindo que você conecte o ChatGPT (Web) com segurança.
 
-- *"Crie um novo baralho chamado 'Física::Leis de Newton'."*
-- *"Leia o PDF em 'C:/caminho/lista.pdf', resolva os exercícios e gere os flashcards contendo as imagens no meu baralho de Física."*
-- *"Busque todas as notas no meu baralho de Biologia que contêm a palavra 'Mitose'."*
-- *"Analise o meu rendimento de estudos e veja quais cartões estão me dando mais trabalho."*
+### Requisitos:
+* Python 3.10+ instalado.
+* Conta e CLI do [ngrok](https://ngrok.com/) configurada.
+
+### Como Rodar e Conectar:
+1. Inicie o servidor MCP rodando o arquivo `run.bat` ou executando no terminal:
+   ```bash
+   pip install -r requirements.txt
+   python server.py
+   ```
+2. Abra um terminal e inicie o túnel do ngrok:
+   ```bash
+   ngrok http 8000
+   ```
+   *(Dica: Registre 1 domínio estático gratuito no site do ngrok e rode `ngrok http --url=seu-dominio.ngrok-free.dev 8000` para manter a URL permanente).*
+3. Acesse o **ChatGPT Web**, vá em **Settings -> Apps**, ative o **Developer Mode** e clique em **Add Custom Connector**.
+4. Configure a URL gerada pelo ngrok com `/sse` no final:
+   * **URL:** `https://seu-dominio.ngrok-free.dev/sse`
+
+---
+
+## 🧰 Lista de Superpoderes Disponíveis (MCP Tools)
+
+* **`list_decks` / `anki_get_deck_names`**: Lista todos os seus baralhos locais.
+* **`create_deck` / `anki_create_deck`**: Cria um novo baralho no Anki.
+* **`add_card` / `anki_add_note`**: Cria e adiciona um card (Frente e Verso) no baralho escolhido. Permite escolher o modelo de nota (ex: `Básico`, `Cloze`).
+* **`add_multiple_cards`**: Adiciona múltiplos cards ao mesmo tempo de forma otimizada.
+* **`search_cards` / `anki_find_notes`**: Busca e lista cards existentes com base em termos de busca (ex: `"deck:Biologia DNA"`).
+* **`edit_card` / `anki_update_note_fields`**: Atualiza a pergunta ou resposta de um card existente usando seu ID.
+* **`delete_card` / `anki_delete_decks`**: Remove cards ou baralhos.
+* **`sync_anki`**: Força a sincronização dos seus cartões locais com o AnkiWeb.
+* **`anki_parse_pdf`**: (*Apenas no Método A*) Lê PDFs locais, extrai textos/mídias e anexa automaticamente as imagens extraídas na pasta de mídia do seu Anki.
+
+---
+
+## 💡 Exemplos de Prompts
+* *"Crie 5 cards de inglês no meu baralho de Vocabulário sobre palavras corporativas avançadas."*
+* *"Procure no meu Anki por cards que mencionam 'Mitocôndria' e me traga os textos deles."*
+* *"Altere a resposta do card de ID 1685890000000 para '42'."*
+* *"Sincronize o meu Anki."*
 
 ---
 
 ## 📄 Licença
-Licença ISC. Desenvolvido para uso pessoal e integrações locais seguras.
+Licença ISC. Desenvolvido para uso pessoal e integrações seguras.
