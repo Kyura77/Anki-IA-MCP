@@ -39,10 +39,38 @@ def invoke_anki(action: str, **params):
         ) from e
 
 @mcp.tool()
+def get_capabilities() -> dict:
+    """Retorna as capacidades integradas deste MCP, com instruções detalhadas sobre fluxos de trabalho (ex: criação de cards com imagem)."""
+    return {
+        "server_name": "Anki Sandbox Bridge",
+        "description": "Sandbox segura de integração direta com o Anki local. Não possuo acesso a arquivos locais do computador por segurança.",
+        "capabilities": [
+            "Listar baralhos (list_decks)",
+            "Criar novos baralhos (create_deck)",
+            "Listar tipos de modelos de nota (list_models)",
+            "Adicionar cards básicos (add_card)",
+            "Adicionar múltiplos cards em lote (add_multiple_cards)",
+            "Buscar e ler cards (search_cards)",
+            "Editar perguntas/respostas de cards existentes (edit_card)",
+            "Deletar cards (delete_card)",
+            "Salvar arquivos de mídia isolados no Anki (store_media_file)",
+            "Criar cards com imagens anexadas em uma só chamada (add_card_with_media)",
+            "Forçar sincronização com o AnkiWeb (sync_anki)",
+            "Diagnóstico de conexão local (ping_anki)"
+        ],
+        "image_workflow_instructions": (
+            "Para imagens que você gerar com DALL-E no ChatGPT: "
+            "1. Sempre que você gerar uma imagem no chat, ela ficará acessível no seu ambiente (ex: /mnt/data) ou através de uma URL. "
+            "2. Para criar o card de forma atômica e confiável, chame a ferramenta 'add_card_with_media'. "
+            "3. Forneça o deck_name, front, back, o nome do arquivo de imagem desejado (ex: 'celula.png') e envie os dados em base64 da imagem gerada (ou a URL) no parâmetro correspondente. "
+            "4. A ferramenta fará o upload para a pasta de mídias do Anki local e inserirá a tag HTML <img src='...'> na posição correta automaticamente."
+        )
+    }
+
+@mcp.tool()
 def ping_anki() -> str:
     """Verifica se a conexão com o Anki local está ativa e respondendo."""
     try:
-        # Ação simples apenas para testar a comunicação
         invoke_anki("deckNames")
         return "Conexão com o Anki está ativa e funcionando perfeitamente!"
     except Exception as e:
@@ -75,8 +103,7 @@ def create_deck(deck_name: str) -> str:
 
 @mcp.tool()
 def store_media_file(filename: str, url: str = None, base64_data: str = None) -> str:
-    """Salva um arquivo de mídia (imagem, áudio, etc.) diretamente na pasta de mídias do Anki a partir de uma URL ou dados em base64. 
-    Retorna o nome do arquivo salvo, que pode ser inserido no campo do card como '<img src=\"nome_do_arquivo.png\">'."""
+    """Salva um arquivo de mídia (imagem, áudio, etc.) diretamente na pasta de mídias do Anki a partir de uma URL ou dados em base64."""
     params = {"filename": filename}
     if url:
         params["url"] = url
@@ -90,9 +117,73 @@ def store_media_file(filename: str, url: str = None, base64_data: str = None) ->
         return f"Erro ao salvar arquivo de mídia: {str(e)}"
 
 @mcp.tool()
+def add_card_with_media(
+    deck_name: str, 
+    front: str, 
+    back: str, 
+    media_filename: str, 
+    media_url: str = None, 
+    media_base64: str = None, 
+    media_position: str = "back",
+    model_name: str = "Basic",
+    tags: list[str] = None
+) -> str:
+    """Adiciona um card contendo uma imagem/mídia. Faz o upload da imagem e insere a tag HTML <img src="..."> no local correto automaticamente.
+    
+    Parâmetros:
+    - deck_name: Nome do baralho.
+    - front: Texto da frente do card.
+    - back: Texto do verso do card.
+    - media_filename: Nome do arquivo para salvar no Anki (ex: 'mitose.png').
+    - media_url: URL da imagem na web (opcional).
+    - media_base64: Dados da imagem codificados em base64 (opcional).
+    - media_position: Onde colocar a imagem ('front' para frente, 'back' para verso, padrão é 'back').
+    - model_name: Modelo de nota (padrão 'Basic').
+    - tags: Lista de tags (opcional).
+    """
+    if tags is None:
+        tags = []
+        
+    # 1. Salvar arquivo de mídia no Anki
+    params = {"filename": media_filename}
+    if media_url:
+        params["url"] = media_url
+    if media_base64:
+        params["data"] = media_base64
+        
+    try:
+        saved_filename = invoke_anki("storeMediaFile", **params)
+    except Exception as e:
+        return f"Erro ao fazer upload da mídia para o Anki: {str(e)}"
+        
+    # 2. Inserir a imagem no campo apropriado
+    img_tag = f'<br><br><img src="{saved_filename}">'
+    
+    if media_position.lower() == "front":
+        front += img_tag
+    else:
+        back += img_tag
+        
+    # 3. Adicionar o card ao Anki
+    note = {
+        "deckName": deck_name,
+        "modelName": model_name,
+        "fields": {
+            "Front": front,
+            "Back": back
+        },
+        "tags": tags
+    }
+    
+    try:
+        note_id = invoke_anki("addNote", note=note)
+        return f"Card de mídia criado com sucesso! Imagem '{saved_filename}' anexada ao {media_position}. ID do Card: {note_id}"
+    except Exception as e:
+        return f"Erro ao criar o card com mídia no Anki: {str(e)}"
+
+@mcp.tool()
 def add_card(deck_name: str, front: str, back: str, model_name: str = "Basic", tags: list[str] = None) -> str:
-    """Cria e adiciona um novo card de perguntas e respostas a um baralho específico.
-    O 'model_name' define o tipo de nota do card (padrão é 'Basic'). Use list_models para descobrir os tipos disponíveis."""
+    """Cria e adiciona um novo card de perguntas e respostas a um baralho específico."""
     if tags is None:
         tags = []
     
@@ -109,7 +200,7 @@ def add_card(deck_name: str, front: str, back: str, model_name: str = "Basic", t
         note_id = invoke_anki("addNote", note=note)
         return f"Card adicionado com sucesso ao baralho '{deck_name}' usando o modelo '{model_name}'. ID do Card: {note_id}"
     except Exception as e:
-        return f"Erro ao adicionar card: {str(e)}. (Dica: verifique se o model_name existe ou se os campos do modelo exigem nomes diferentes de 'Front' e 'Back')."
+        return f"Erro ao adicionar card: {str(e)}."
 
 @mcp.tool()
 def add_multiple_cards(deck_name: str, cards: list[dict], default_model_name: str = "Basic") -> str:
@@ -173,7 +264,7 @@ def edit_card(note_id: int, front: str = None, back: str = None) -> str:
         
     try:
         invoke_anki("updateNoteFields", note={"id": note_id, "fields": fields})
-        return f"Card ID {note_id} atualizado com sucesso."
+        return f"Card ID {note_id} updated successfully."
     except Exception as e:
         return f"Erro ao atualizar o card: {str(e)}"
 
