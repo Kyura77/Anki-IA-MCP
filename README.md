@@ -96,6 +96,7 @@ Este método expõe um servidor HTTP/SSE local na porta `8000` e utiliza o **ngr
 * **`edit_card` / `anki_update_note_fields`**: Atualiza a pergunta ou resposta de um card existente usando seu ID.
 * **`delete_card` / `anki_delete_decks`**: Remove cards ou baralhos.
 * **`sync_anki`**: Força a sincronização dos seus cartões locais com o AnkiWeb.
+* **`store_media_file` / `anki_store_media_file`**: Salva imagens ou mídias diretamente no Anki (útil para cards com imagens criadas pelo ChatGPT).
 * **`anki_parse_pdf`**: (*Apenas no Método A*) Lê PDFs locais, extrai textos/mídias e anexa automaticamente as imagens extraídas na pasta de mídia do seu Anki.
 
 ---

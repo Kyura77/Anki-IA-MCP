@@ -74,6 +74,22 @@ def create_deck(deck_name: str) -> str:
         return f"Erro ao criar baralho: {str(e)}"
 
 @mcp.tool()
+def store_media_file(filename: str, url: str = None, base64_data: str = None) -> str:
+    """Salva um arquivo de mídia (imagem, áudio, etc.) diretamente na pasta de mídias do Anki a partir de uma URL ou dados em base64. 
+    Retorna o nome do arquivo salvo, que pode ser inserido no campo do card como '<img src=\"nome_do_arquivo.png\">'."""
+    params = {"filename": filename}
+    if url:
+        params["url"] = url
+    if base64_data:
+        params["data"] = base64_data
+        
+    try:
+        result = invoke_anki("storeMediaFile", **params)
+        return f"Mídia '{result}' salva com sucesso no Anki. Use '<img src=\"{result}\">' no campo do card."
+    except Exception as e:
+        return f"Erro ao salvar arquivo de mídia: {str(e)}"
+
+@mcp.tool()
 def add_card(deck_name: str, front: str, back: str, model_name: str = "Basic", tags: list[str] = None) -> str:
     """Cria e adiciona um novo card de perguntas e respostas a um baralho específico.
     O 'model_name' define o tipo de nota do card (padrão é 'Basic'). Use list_models para descobrir os tipos disponíveis."""
