@@ -90,14 +90,16 @@ Este método expõe um servidor HTTP/SSE local na porta `8000` e utiliza o **ngr
 
 * **`list_decks` / `anki_get_deck_names`**: Lista todos os seus baralhos locais.
 * **`create_deck` / `anki_create_deck`**: Cria um novo baralho no Anki.
-* **`add_card` / `anki_add_note`**: Cria e adiciona um card (Frente e Verso) no baralho escolhido. Permite escolher o modelo de nota (ex: `Básico`, `Cloze`).
+* **`list_models`**: Lista os modelos de nota disponíveis no Anki (ex: `Básico`, `Basic`).
+* **`list_model_fields`**: Lista os campos específicos de um modelo de nota (ex: `['Frente', 'Verso']`).
+* **`add_card` / `anki_add_note`**: Cria e adiciona um card (Frente e Verso) no baralho escolhido. Mapeia automaticamente as perguntas/respostas para os campos do modelo (ex: Frente/Verso ou Front/Back).
 * **`add_multiple_cards`**: Adiciona múltiplos cards ao mesmo tempo de forma otimizada.
 * **`search_cards` / `anki_find_notes`**: Busca e lista cards existentes com base em termos de busca (ex: `"deck:Biologia DNA"`).
 * **`edit_card` / `anki_update_note_fields`**: Atualiza a pergunta ou resposta de um card existente usando seu ID.
 * **`delete_card` / `anki_delete_decks`**: Remove cards ou baralhos.
 * **`sync_anki`**: Força a sincronização dos seus cartões locais com o AnkiWeb.
 * **`store_media_file` / `anki_store_media_file`**: Salva imagens ou mídias diretamente no Anki (útil para cards com imagens criadas pelo ChatGPT).
-* **`add_card_with_media`**: Cria o card e faz o upload da imagem de forma atômica em um único comando (resolve o fluxo de imagens do ChatGPT).
+* **`add_card_with_media`**: Cria o card e faz o upload da imagem de forma atômica em um único comando. Resolve automaticamente o mapeamento de campos (Frente/Verso ou Front/Back).
 * **`get_capabilities`**: Retorna a lista completa de ferramentas e instruções recomendadas para o assistente de IA.
 * **`anki_parse_pdf`**: (*Apenas no Método A*) Lê PDFs locais, extrai textos/mídias e anexa automaticamente as imagens extraídas na pasta de mídia do seu Anki.
 

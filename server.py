@@ -38,6 +38,23 @@ def invoke_anki(action: str, **params):
             "Certifique-se de que o Anki está aberto e com o add-on AnkiConnect instalado e ativo."
         ) from e
 
+def map_fields(model_name: str, front_val: str, back_val: str) -> dict:
+    """Mapeia dinamicamente a frente e verso para os campos correspondentes do modelo do Anki local."""
+    try:
+        fields = invoke_anki("modelFieldNames", modelName=model_name)
+        if len(fields) >= 2:
+            return {
+                fields[0]: front_val,
+                fields[1]: back_val
+            }
+    except Exception:
+        pass
+    # Fallback padrão caso dê erro ou o modelo seja desconhecido
+    return {
+        "Front": front_val,
+        "Back": back_val
+    }
+
 @mcp.tool()
 def get_capabilities() -> dict:
     """Retorna as capacidades integradas deste MCP, com instruções detalhadas sobre fluxos de trabalho (ex: criação de cards com imagem)."""
@@ -48,7 +65,8 @@ def get_capabilities() -> dict:
             "Listar baralhos (list_decks)",
             "Criar novos baralhos (create_deck)",
             "Listar tipos de modelos de nota (list_models)",
-            "Adicionar cards básicos (add_card)",
+            "Listar campos de um modelo específico (list_model_fields)",
+            "Adicionar cards básicos com mapeamento de campos automático (add_card)",
             "Adicionar múltiplos cards em lote (add_multiple_cards)",
             "Buscar e ler cards (search_cards)",
             "Editar perguntas/respostas de cards existentes (edit_card)",
@@ -93,6 +111,14 @@ def list_models() -> list[str]:
         return [f"Erro: {str(e)}"]
 
 @mcp.tool()
+def list_model_fields(model_name: str) -> list[str]:
+    """Lista todos os nomes de campos de um modelo de nota específico (ex: ['Frente', 'Verso'] ou ['Front', 'Back'])."""
+    try:
+        return invoke_anki("modelFieldNames", modelName=model_name)
+    except Exception as e:
+        return [f"Erro: {str(e)}"]
+
+@mcp.tool()
 def create_deck(deck_name: str) -> str:
     """Cria um novo baralho (deck) no Anki com o nome fornecido."""
     try:
@@ -126,7 +152,8 @@ def add_card_with_media(
     media_base64: str = None, 
     media_position: str = "back",
     model_name: str = "Basic",
-    tags: list[str] = None
+    tags: list[str] = None,
+    custom_fields: dict = None
 ) -> str:
     """Adiciona um card contendo uma imagem/mídia. Faz o upload da imagem e insere a tag HTML <img src="..."> no local correto automaticamente.
     
@@ -140,6 +167,7 @@ def add_card_with_media(
     - media_position: Onde colocar a imagem ('front' para frente, 'back' para verso, padrão é 'back').
     - model_name: Modelo de nota (padrão 'Basic').
     - tags: Lista de tags (opcional).
+    - custom_fields: Dicionário personalizado de campos (opcional, ignora o mapeamento automático).
     """
     if tags is None:
         tags = []
@@ -164,14 +192,17 @@ def add_card_with_media(
     else:
         back += img_tag
         
-    # 3. Adicionar o card ao Anki
+    # 3. Mapear campos
+    if custom_fields:
+        fields = custom_fields
+    else:
+        fields = map_fields(model_name, front, back)
+        
+    # 4. Adicionar o card ao Anki
     note = {
         "deckName": deck_name,
         "modelName": model_name,
-        "fields": {
-            "Front": front,
-            "Back": back
-        },
+        "fields": fields,
         "tags": tags
     }
     
@@ -182,18 +213,20 @@ def add_card_with_media(
         return f"Erro ao criar o card com mídia no Anki: {str(e)}"
 
 @mcp.tool()
-def add_card(deck_name: str, front: str, back: str, model_name: str = "Basic", tags: list[str] = None) -> str:
+def add_card(deck_name: str, front: str, back: str, model_name: str = "Basic", tags: list[str] = None, custom_fields: dict = None) -> str:
     """Cria e adiciona um novo card de perguntas e respostas a um baralho específico."""
     if tags is None:
         tags = []
     
+    if custom_fields:
+        fields = custom_fields
+    else:
+        fields = map_fields(model_name, front, back)
+        
     note = {
         "deckName": deck_name,
         "modelName": model_name,
-        "fields": {
-            "Front": front,
-            "Back": back
-        },
+        "fields": fields,
         "tags": tags
     }
     try:
@@ -205,17 +238,20 @@ def add_card(deck_name: str, front: str, back: str, model_name: str = "Basic", t
 @mcp.tool()
 def add_multiple_cards(deck_name: str, cards: list[dict], default_model_name: str = "Basic") -> str:
     """Adiciona múltiplos cards ao mesmo tempo. 
-    Cada item na lista de 'cards' deve ser um dicionário/objeto com as chaves 'front', 'back' e opcionalmente 'tags' ou 'model_name'."""
+    Cada item na lista de 'cards' deve ser um dicionário/objeto com as chaves 'front', 'back' e opcionalmente 'tags', 'model_name' ou 'custom_fields'."""
     notes = []
     for card in cards:
         model = card.get("model_name", default_model_name)
+        
+        if "custom_fields" in card:
+            fields = card["custom_fields"]
+        else:
+            fields = map_fields(model, card.get("front", ""), card.get("back", ""))
+            
         notes.append({
             "deckName": deck_name,
             "modelName": model,
-            "fields": {
-                "Front": card.get("front", ""),
-                "Back": card.get("back", "")
-            },
+            "fields": fields,
             "tags": card.get("tags", [])
         })
     try:
